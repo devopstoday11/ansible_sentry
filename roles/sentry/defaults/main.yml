@@ -1,0 +1,34 @@
+---
+
+###
+# SENTRY
+###
+
+# Github repository
+sentry_github_repo: https://github.com/getsentry/onpremise
+
+# Directory
+sentry_home_dir: /opt/sentry
+
+# Docker
+
+# Environment variables
+sentry_env:
+  secret_key: l+z339z*h96ui^v)@!f__q)mjvlxd5dd^hyf-i1od!pq*=c(xp
+
+# Network
+sentry_docker_network: sentry
+
+# Volume
+sentry_docker_volumes:
+  - sentry-data
+  - sentry-postgres
+
+# Users
+sentry_users:
+  - email: superadmin@wikitops.io
+    password: secretpassword
+    role: superuser
+  - email: user1@wikitops.io
+    password: secretpassword
+    role: no-superuser

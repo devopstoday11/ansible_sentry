@@ -1,0 +1,134 @@
+---
+
+- name: SENTRY DOCKER | Clone project
+  git:
+    repo: "{{ sentry_github_repo }}"
+    dest: "{{ sentry_home_dir }}"
+
+- name: SENTRY DOCKER | Manage network
+  docker_network:
+    name: "{{ sentry_docker_network }}"
+
+- name: SENTRY DOCKER | Manage volume
+  docker_volume:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ sentry_docker_volumes }}"
+
+- name: SENTRY DOCKER | Manage Memcached
+  docker_container:
+    name: sentry-memcached
+    image: memcached:1.5-alpine
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ sentry_docker_network }}"
+
+- name: SENTRY DOCKER | Manage Redis
+  docker_container:
+    name: sentry-redis
+    image: redis:3.2-alpine
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ sentry_docker_network }}"
+
+- name: SENTRY DOCKER | Manage Postgresql
+  docker_container:
+    env:
+      POSTGRES_PASSWORD: secret
+      POSTGRES_USER: sentry
+    name: sentry-postgres
+    image: postgres:9.5
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ sentry_docker_network }}"
+    volumes:
+      - sentry-postgres:/var/lib/postgresql/data
+
+- name: SENTRY DOCKER | Manage SMTP
+  docker_container:
+    name: sentry-smtp
+    image: tianon/exim4
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ sentry_docker_network }}"
+
+- name: SENTRY DOCKER | Build image
+  docker_image:
+    path: "{{ sentry_home_dir }}"
+    name: sentry-onpremise
+    force: true
+    tag: latest
+    pull: true
+
+- name: SENTRY DOCKER | Upgrade Sentry
+  docker_container:
+    cleanup: true
+    command: "upgrade --noinput"
+    detach: false
+    env:
+      SENTRY_SECRET_KEY: "{{ sentry_env.secret_key }}"
+    name: sentry
+    image: sentry-onpremise
+    links:
+     - "sentry-memcached:memcached"
+     - "sentry-redis:redis"
+     - "sentry-postgres:postgres"
+     - "sentry-smtp:smtp"
+    state: started
+    recreate: yes
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ sentry_docker_network }}"
+    volumes:
+      - sentry-data:/var/lib/sentry/files
+
+- name: SENTRY DOCKER | Manage Web interface
+  docker_container:
+    command: "run web"
+    env:
+      SENTRY_SECRET_KEY: "{{ sentry_env.secret_key }}"
+    name: sentry-web-01
+    image: sentry-onpremise
+    links:
+     - "sentry-redis:redis"
+     - "sentry-postgres:postgres"
+     - "sentry-smtp:smtp"
+    ports:
+      - "9000:9000"
+    state: started
+    recreate: yes
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ sentry_docker_network }}"
+    volumes:
+      - sentry-data:/var/lib/sentry/files
+
+- name: SENTRY DOCKER | Manage Worker and Cron
+  docker_container:
+    command: "run {{ item }}"
+    env:
+      SENTRY_SECRET_KEY: "{{ sentry_env.secret_key }}"
+    name: sentry-{{ item }}-01
+    image: sentry-onpremise
+    links:
+     - "sentry-redis:redis"
+     - "sentry-postgres:postgres"
+     - "sentry-smtp:smtp"
+    state: started
+    recreate: yes
+    restart_policy: unless-stopped
+    networks:
+      - name: "{{ sentry_docker_network }}"
+    volumes:
+      - sentry-data:/var/lib/sentry/files
+  with_items:
+    - worker
+    - cron
+
+- name: SENTRY DOCKER | Manage users
+  command: "docker exec sentry-web-01 sentry createuser --email {{ item.email }} --password {{ item.password }} --no-input --{{ item.role }}"
+  with_items: "{{ sentry_users }}"

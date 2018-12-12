@@ -1,0 +1,4 @@
+---
+
+- name: SENTRY | Manage Docker environment
+  import_tasks: docker.yml

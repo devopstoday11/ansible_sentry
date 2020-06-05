@@ -14,7 +14,7 @@ $num_instances          = 1
 $instance_name_prefix   = "sentry"
 $vm_memory              = 4096
 $vm_cpus                = 2
-$subnet                 = "10.0.5.22" # For 10.0.5.22X
+$subnet                 = "10.0.0.1" # For 10.0.0.1X
 $box                    = SUPPORTED_OS[$os][:box]
 
 # Ansible provisioner

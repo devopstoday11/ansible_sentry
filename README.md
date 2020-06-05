@@ -43,7 +43,7 @@ Current machine states:
 sentry01                   running (virtualbox)
 ```
 
-If everything run has expected, you should be able to access Sentry Web interface : http://10.0.5.221:9000/
+If everything run as expected, you should be able to access Sentry Web interface : http://10.0.0.11:9000/
 
 Default logins are :
 
